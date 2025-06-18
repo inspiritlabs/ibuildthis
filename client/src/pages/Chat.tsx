@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { useQueryClient, useMutation } from '@tanstack/react-query';
+import React, { useState, useRef } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { useParams } from 'wouter';
-import { sendMessage } from '@client/lib/api';
+import { sendMessage, fetchSpeech } from '@client/lib/api';
 import ChatBubble from '@client/components/ChatBubble';
 import Input from '@client/components/Input';
 
@@ -13,12 +13,31 @@ interface Message {
 const Chat: React.FC = () => {
   const { id } = useParams();
   const [messages, setMessages] = useState<Message[]>([]);
+  const lastMessageRef = useRef<Message | null>(null);
   const [text, setText] = useState('');
-  const qc = useQueryClient();
   const mutation = useMutation({
-    mutationFn: (prompt: string) => sendMessage(id!, prompt),
-    onSuccess: (res) => {
-      setMessages((m) => [...m, { sender: 'assistant', text: res }]);
+    mutationFn: (prompt: string) =>
+      sendMessage(id!, prompt, (token) => {
+        setMessages((m) => {
+          const last = m[m.length - 1];
+          if (last && last.sender === 'assistant') {
+            last.text += token;
+            lastMessageRef.current = last;
+            return [...m.slice(0, -1), last];
+          }
+          const msg = { sender: 'assistant', text: token } as Message;
+          lastMessageRef.current = msg;
+          return [...m, msg];
+        });
+      }),
+    onSuccess: async () => {
+      const last = lastMessageRef.current;
+      if (last && last.sender === 'assistant') {
+        const blob = await fetchSpeech(id!, last.text);
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio.play();
+      }
     }
   });
 

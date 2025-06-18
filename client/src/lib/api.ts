@@ -3,6 +3,8 @@ export interface CreateReplicaReq {
   sampleUrl: string;
 }
 
+import { stream } from './stream';
+
 export interface CreateReplicaRes {
   replicaId: string;
 }
@@ -20,12 +22,18 @@ export const createReplica = async (
 
 export const sendMessage = async (
   replicaId: string,
+  text: string,
+  onToken: (t: string) => void
+): Promise<void> => {
+  await stream('/api/chat', { replicaId, text }, onToken);
+};
+
+export const fetchSpeech = async (
+  replicaId: string,
   text: string
-): Promise<string> => {
-  const res = await fetch('/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ replicaId, text })
-  });
-  return res.text();
+): Promise<Blob> => {
+  const res = await fetch(
+    `/api/speech/${replicaId}?text=${encodeURIComponent(text)}`
+  );
+  return res.blob();
 };

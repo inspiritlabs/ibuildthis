@@ -9,5 +9,10 @@ export default defineConfig({
       '@client': path.resolve(__dirname, 'src'),
       '@shared': path.resolve(__dirname, '../shared')
     }
+  },
+  server: {
+    proxy: {
+      '/api': 'http://localhost:3000'
+    }
   }
 });
